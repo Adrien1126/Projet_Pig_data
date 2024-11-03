@@ -1,0 +1,162 @@
+---
+title: "Pig Data"
+author: "Adrien Gluckman"
+date: "2024-11-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+```{r}
+# Charger les librairies nécessaires
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+# import data 
+train <- read.csv("~/Documents/M2QF/MOSA/Projet_Pig_data/pig_data_proj/train1.csv")
+test <- read.csv("~/Documents/M2QF/MOSA/Projet_Pig_data/pig_data_proj/test1.csv")
+```
+
+# Introduction
+
+The aim of this study is to predict the weight of pig in differents farms. Our datasets contains 9 explanatory variables and our target the weight as described below :
+
+```{r}
+head(train)
+```
+
+# Data exploratory 
+
+```{r}
+summary(train)
+```
+
+## Missing values 
+
+```{r}
+colSums(is.na(train))
+```
+
+## Weight by Farms 
+
+```{r}
+boxplot(Weight ~ Farm, data = train, main = "Distribution des poids par ferme")
+```
+
+```{r}
+# Charger les bibliothèques nécessaires
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+
+# S'assurer que Farm est un facteur
+train$Farm <- as.factor(train$Farm)
+
+# Calculer la moyenne du poids par semaine et par ferme, avec .groups = "drop"
+mean_weight <- train %>%
+    group_by(Farm, Age) %>%
+    summarise(moyenne_poids = mean(Weight, na.rm = TRUE), .groups = "drop")
+
+# Choisir une palette de couleurs bien contrastées
+ferme_colors <- brewer.pal(7, "Set1")  # "Set1" est une palette de couleurs discrètes bien distinctes
+
+# Tracer les courbes de croissance avec des couleurs personnalisées
+ggplot(mean_weight, aes(x = Age, y = moyenne_poids, color = Farm)) +
+    geom_line() +
+    geom_point() +
+    scale_color_manual(values = ferme_colors) +  # Utilise les couleurs définies
+    labs(title = "Courbe de croissance des cochons par ferme", x = "Semaine", y = "Poids moyen") +
+    theme_minimal()
+
+```
+
+```{r}
+desc_stats <- train %>%
+    group_by(Farm) %>%
+    summarise(
+        moyenne = mean(Weight, na.rm = TRUE),
+        mediane = median(Weight, na.rm = TRUE),
+        ecart_type = sd(Weight, na.rm = TRUE),
+        min = min(Weight, na.rm = TRUE),
+        max = max(Weight, na.rm = TRUE),
+        .groups = "drop"  # Désactive le regroupement après summarise()
+    )
+
+print(desc_stats)
+
+
+```
+
+## Species by farm 
+
+```{r}
+
+# Vérifiez que la variable Species est un facteur
+train$Species <- as.factor(train$Species)
+
+# Compter le nombre de cochons de chaque espèce par ferme
+species_count <- train %>%
+    group_by(Farm, Species) %>%
+    summarise(count = n(), .groups = "drop")
+
+# Choisir une palette de couleurs bien contrastées
+# Vous pouvez choisir une palette de couleurs avec plus de couleurs si nécessaire
+ferme_colors <- brewer.pal(n = length(unique(species_count$Species)), name = "Set2")
+
+# Créer le graphique
+ggplot(species_count, aes(x = Farm, y = count, fill = Species)) +
+    geom_bar(stat = "identity", position = "stack") +
+    scale_fill_manual(values = ferme_colors) + # Utilisation de la palette de couleurs personnalisée
+    labs(title = "Nombre de cochons par espèce et par ferme", 
+         x = "Ferme", 
+         y = "Nombre de cochons") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotation des étiquettes de l'axe x pour une meilleure lisibilité
+```
+
+```{r}
+# Calculer le poids moyen par espèce et par ferme
+species_weight_stats <- train %>%
+    group_by(Species) %>%
+    summarise(
+        poids_moyen = mean(Weight, na.rm = TRUE),
+        ecart_type = sd(Weight, na.rm = TRUE),
+        .groups = "drop"
+    )
+
+print(species_weight_stats)
+
+```
+
+### Evolution of the weight regarding species
+
+```{r}
+# Vérifiez que la variable Species est un facteur
+train$Species <- as.factor(train$Species)
+
+# Calculer le poids moyen par espèce et par semaine (Age)
+species_weight_evolution <- train %>%
+    group_by(Species, Age) %>%
+    summarise(
+        poids_moyen = mean(Weight, na.rm = TRUE),
+        .groups = "drop"
+    )
+
+# Choisir une palette de couleurs bien contrastées
+ferme_colors <- brewer.pal(n = length(unique(species_weight_evolution$Species)), name = "Set1")
+
+# Créer le graphique
+ggplot(species_weight_evolution, aes(x = Age, y = poids_moyen, color = Species)) +
+    geom_line(size = 1) +           # Courbe pour chaque espèce
+    geom_point(size = 2) +          # Points pour chaque valeur
+    scale_color_manual(values = ferme_colors) +
+    labs(title = "Évolution du poids moyen des cochons par espèce", 
+         x = "Semaine", 
+         y = "Poids moyen") +
+    theme_minimal()
+
+
+```
