@@ -1,0 +1,77 @@
+---
+title: "Project Pig Growth"
+author: "Charles YANG"
+date: "2024-11-03"
+output: 
+  pdf_document: default
+---
+
+```{r}
+rm(list=ls())
+graphics.off()
+```
+
+# Exploratory data
+
+```{r}
+train=read.csv("pig_data_proj/train1.csv",sep=",")
+head(train)
+```
+```{r}
+summary(train)
+str(train)
+```
+```{r}
+colSums(is.na(train)) 
+```
+```{r}
+hist(train$Weight, main="Distribution of Weight", xlab="Weight", col="skyblue")
+boxplot(train$Weight, main="Boxplot of Weight", col="skyblue")
+```
+```{r}
+mean(train$Weight, na.rm = TRUE)
+sd(train$Weight, na.rm = TRUE)
+```
+```{r}
+table(train$Species)
+barplot(table(train$Gender), main="Gender Distribution", col="lightcoral")
+```
+
+```{r}
+plot(train$Age, train$Weight, main="Weight vs. Age", xlab="Age", ylab="Weight", col="blue", pch=19)
+```
+```{r}
+# Scatter plot with conditional colors based on Gender
+plot(train$Chest, train$Weight, 
+     main = "Weight vs. Chest", 
+     xlab = "Chest", 
+     ylab = "Weight", 
+     col = ifelse(train$Gender == 1, "red", "blue"), 
+     pch = 19)
+
+# Add legend
+legend("topright", legend = c("Gender 1", "Gender 2"), 
+       col = c("red", "blue"), pch = 19)
+```
+
+```{r}
+# Calculate correlation matrix for numeric columns only
+numeric_data <- train[, sapply(train, is.numeric)]
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+```
+
+```{r}
+library(corrplot)
+
+# Plot the correlation matrix as a heatmap
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45,
+         addCoef.col = "black", # Shows correlation coefficient values
+         col = colorRampPalette(c("blue", "white", "red"))(200)) # Color scale
+```
+
+```{r}
+boxplot(train$Weight ~ train$Species, main = "Weight by Species", xlab = "Species", ylab = "Weight", col = "lightblue")
+```
+
+
