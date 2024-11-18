@@ -1,0 +1,6 @@
+# Fichiers système
+.DS_Store
+
+# Données de session R
+.RData
+.Rhistory
