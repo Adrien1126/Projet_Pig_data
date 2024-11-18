@@ -2,7 +2,9 @@
 title: "Pig Data"
 author: "Adrien Gluckman"
 date: "2024-11-03"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -28,19 +30,23 @@ The aim of this study is to predict the weight of pig in differents farms. Our d
 head(train)
 ```
 
-# Data exploratory 
+# Data exploratory
 
 ```{r}
 summary(train)
 ```
 
-## Missing values 
+```{r}
+summary(test)
+```
+
+## Missing values
 
 ```{r}
 colSums(is.na(train))
 ```
 
-## Weight by Farms 
+## Weight by Farms
 
 ```{r}
 boxplot(Weight ~ Farm, data = train, main = "Distribution des poids par ferme")
@@ -90,7 +96,7 @@ print(desc_stats)
 
 ```
 
-## Species by farm 
+## Species by farm
 
 ```{r}
 
