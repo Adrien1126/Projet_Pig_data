@@ -1,0 +1,132 @@
+---
+title: "tp7"
+author: "Charles YANG"
+date: "2024-11-24"
+output: html_document
+---
+
+```{r}
+rm(list=ls())
+graphics.off()
+```
+
+# Exploratory data Analysis revisited
+
+```{r}
+train=read.csv("pig_data_proj/train1.csv",sep=",")
+test=read.csv("pig_data_proj/test1.csv",sep=",")
+head(train)
+```
+## 1.
+
+```{r}
+summary(train)
+```
+### Missing Values 
+
+```{r}
+# Fit models for imputation
+chest_model <- lm(Chest ~ Age + Weight, data = train, na.action = na.exclude)
+length_model <- lm(Length ~ Age + Weight, data = train, na.action = na.exclude)
+
+# Predict missing values
+train$Chest[is.na(train$Chest)] <- predict(chest_model, newdata = train[is.na(train$Chest), ])
+train$Length[is.na(train$Length)] <- predict(length_model, newdata = train[is.na(train$Length), ])
+
+```
+
+
+```{r}
+# Calculate correlation matrix for numeric columns only
+numeric_data <- train[, sapply(train, is.numeric)]
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+```
+
+```{r}
+library(corrplot)
+
+# Plot the correlation matrix as a heatmap
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45,
+         addCoef.col = "black", # Shows correlation coefficient values
+         col = colorRampPalette(c("blue", "white", "red"))(200)) # Color scale
+```
+
+
+## 2. 
+
+```{r}
+X=train$Age
+Y=train$Weight
+
+# Fit a smoothing spline
+fit <- smooth.spline(X, Y)
+
+# Extract fitted values
+fitted_values <- predict(fit, X)$y
+
+# Residual variance (sigma^2)
+residuals <- Y - fitted_values
+RSS <- sum(residuals^2)
+n <- length(Y)
+df <- fit$df
+sigma_squared <- RSS / (n - df)
+
+# Calculate standard errors for fitted values
+B <- predict(fit, X, deriv = 0)$x  # Equivalent to basis matrix
+H <- approx(x = fit$x, y = fit$lev, xout = X)$y      # Leverage from the smoothing spline
+SE <- sqrt(H * sigma_squared)      # Standard errors for fitted values
+
+# Check dimensions
+length(fitted_values)  # From predict(fit, X)$y
+length(SE)             # From sqrt(H * sigma_squared)
+
+# Calculate 95% confidence intervals
+ci_lower <- fitted_values - 1.96 * SE
+ci_upper <- fitted_values + 1.96 * SE
+
+sorted_X=sort(X)
+# Plotting
+plot(X, Y, main = "Smoothing Spline with 95% Variability Band", col = "gray")
+lines(X, fitted_values, col = "blue", lwd = 2)
+lines(X, ci_lower, col = "red", lty = 2)
+lines(X, ci_upper, col = "red", lty = 2)
+polygon(c(X, rev(X)), c(ci_upper, rev(ci_lower)), col = rgb(1, 0, 0, 0.2), border = NA)
+legend("topright", legend = c("Fitted Curve", "95% Variability Band"),
+       col = c("blue", "red"), lty = c(1, 2), bty = "n")
+
+```
+
+# Additive Models
+
+## 4. 
+
+```{r}
+library(mgcv)
+
+fit <- gam(Weight ~ s(Age), data = train)
+# Résumé du modèle
+summary(fit)
+plot(fit)
+```
+## 5.
+
+```{r}
+fit2 <- gam(Weight ~ s(Age) + s(Chest) + s(Length), data = train)
+# Résumé du modèle
+summary(fit)
+plot(fit)
+```
+```{r}
+fit$df.residual
+fit2$df.residual
+```
+## 6.
+
+```{r}
+
+```
+
+# Linear mixed effects models revisited
+
+
