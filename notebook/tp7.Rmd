@@ -107,26 +107,275 @@ library(mgcv)
 fit <- gam(Weight ~ s(Age), data = train)
 # Résumé du modèle
 summary(fit)
-plot(fit)
+plot(fit, shade = TRUE, shade.col = "lightblue", main = "Smooth Effect of Age on Weight")
 ```
+we have edf of s(Age) equal to $6.6 > 1$ and a p-value of $10^{-16}$ so the effect of Age is non-linear.
+
+```{r}
+gam.check(fit)
+```
+
 ## 5.
 
 ```{r}
 fit2 <- gam(Weight ~ s(Age) + s(Chest) + s(Length), data = train)
 # Résumé du modèle
-summary(fit)
-plot(fit)
+summary(fit2)
+plot(fit2, pages = 1, shade = TRUE, shade.col = "lightblue")
 ```
+Chest and lenght have edf superior to 1 so the effect of both are non-linear.
+
+s(Age) :
+The plot shows a steady increase, particularly after Age > 10
+The curve appears non-linear, with slower growth at earlier ages and more rapid growth at later ages
+This indicates that weight gain is slower for younger pigs and accelerates as they grow older.
+
+s(Chest) :
+The plot starts with a steep upward slope and then flattens as Chest increases (after ~110-120).
+This pattern suggests diminishing returns: the effect of increasing chest size on weight becomes less pronounced at larger chest sizes.
+At smaller chest sizes, there’s a strong positive relationship with weight, indicating that chest circumference is a significant predictor of weight gain in smaller pigs.
+Beyond a certain chest size, additional gains in weight are marginal.
+
+s(Length) : 
+The plot is relatively flat, with minimal upward or downward trends.
+This suggests that Length has a weak or negligible effect on Weight in this dataset.
+The contribution of Length to explaining weight variability is minimal. This could mean that Length is less relevant compared to Age and Chest.
+
 ```{r}
-fit$df.residual
-fit2$df.residual
+AIC(fit, fit2)
 ```
+
+Including Chest and Length as smooth terms improves model performance, as indicated by a lower AIC value. The effect of Chest on Weight appears non-linear, with diminishing returns as chest size increases, while Length shows a steady increase in Weight
+
 ## 6.
 
 ```{r}
-
+fit_without_length <- gam(Weight ~ s(Age) + s(Chest), data = train)
+AIC(fit2, fit_without_length)
+```
+```{r}
+fit_interaction <- gam(Weight ~ te(Age, Chest) + s(Length) , data = train)
+AIC(fit2, fit_interaction)
+```
+```{r}
+fit_with_factors <- gam(Weight ~ s(Age) + s(Chest) + s(Length) + Gender + Species, data = train)
+AIC(fit2, fit_with_factors)
+```
+```{r}
+best_gam=fit_interaction
 ```
 
 # Linear mixed effects models revisited
 
+## 7.
+
+Model assumptions: The model assumes additive effects of predictors, smooth relationships, normality of residuals, and independence of observations.
+Random effects considered: Random intercepts for Farm or ID to account for variations between farms or pigs.
+Reasonableness: Random effects are reasonable because pigs are grouped within farms, and measurements may vary across farms or individuals.
+
+## 8.
+
+```{r}
+library(nlme)
+
+# Fit the linear mixed-effects model
+model <- lme(Weight ~ Age , random = ~ 1 | Farm, data = train)
+
+# Summarize the model
+summary(model)
+
+# Apply model diagnostics
+# 1. Residuals vs Fitted Values
+plot(model, resid(., type = "p") ~ fitted(.), main = "Residuals vs Fitted")
+
+# 2. Q-Q plot of residuals
+qqnorm(resid(model), main = "Q-Q Plot of Residuals")
+qqline(resid(model))
+
+# 3. Plot random effects
+plot(ranef(model), main = "Random Effects")
+
+```
+
+```{r}
+# Linear mixed-effects model with random slope and intercept
+alt_model <- lme(Weight ~ Age, random = ~ Age | Farm, data = train)
+AIC(model,alt_model)
+```
+## 10. 
+
+```{r}
+# Fit the linear mixed-effects model with AR(1) correlation structure
+ar1_model <- lme(Weight ~ Age, 
+                 random = ~ 1 | Farm, 
+                 correlation = corAR1(form = ~ 1 | Farm), 
+                 data = train)
+
+# Summarize the model
+summary(ar1_model)
+
+# Compare residuals and fitted values
+# Residual diagnostics
+plot(ar1_model, resid(., type = "p") ~ fitted(.), main = "Residuals vs Fitted")
+
+# Q-Q plot of residuals
+qqnorm(resid(ar1_model), main = "Q-Q Plot of Residuals for AR(1) Model")
+qqline(resid(ar1_model))
+
+```
+
+```{r}
+# Perform likelihood ratio test
+anova(model, ar1_model)
+
+```
+
+This indicates that the AR(1) model is a significantly better fit compared to the initial model, as:
+
+  The AIC (Akaike Information Criterion) is lower for the AR(1) model.
+  The log-likelihood is higher for the AR(1) model.
+  The p-value for the likelihood ratio test is < 0.0001, meaning the improvement is statistically significant.
+
+```{r}
+# Initial model residual plot
+plot(model, resid(., type = "p") ~ fitted(.), main = "Residuals vs Fitted (Initial Model)")
+
+# AR(1) model residual plot
+plot(ar1_model, resid(., type = "p") ~ fitted(.), main = "Residuals vs Fitted (AR(1) Model)")
+
+```
+In the residual vs. fitted plot for the initial model, there is a noticeable curved trend where residuals deviate systematically from zero, especially at low and high fitted values.
+This suggests that the initial model does not adequately explain the relationship, we didn't took chest and length into account.
+
+The residual plot for the AR(1) model shows an improvement compared to the initial model, with a reduction in the curvature trend.
+However, some systematic patterns still persist at certain ranges of fitted values, but they are less pronounced.
+
+## 11. 
+
+```{r}
+model2 <- lme(Weight ~ Age +Chest + Length , random = ~ 1 | Farm, data = train)
+model3 <- lme(Weight ~ Age +Chest + Length , random = ~ Age | Farm, data = train)
+model4 <- lme(Weight ~ Age +Chest + Length , random = ~ Farm | Farm, data = train)
+ar1_model2 <- lme(Weight ~ Age +Chest + Length,
+                 random = ~ Age | Farm, 
+                 correlation = corAR1(form = ~ 1 | Farm), 
+                 data = train)
+```
+```{r}
+anova(model, model2,model3,model4,ar1_model2)
+```
+```{r}
+best_lme=ar1_model2
+# Summarize the model
+summary(best_lme)
+
+# Apply model diagnostics
+# 1. Residuals vs Fitted Values
+plot(best_lme, resid(., type = "p") ~ fitted(.), main = "Residuals vs Fitted")
+
+# 2. Q-Q plot of residuals
+qqnorm(resid(best_lme), main = "Q-Q Plot of Residuals")
+qqline(resid(best_lme))
+
+# 3. Plot random effects
+plot(ranef(best_lme), main = "Random Effects")
+
+```
+
+# Additive linear mixed effects models
+
+## 12.
+
+```{r}
+# Load necessary library
+library(mgcv)
+
+# Fit the additive mixed effects model using gamm
+fit_additive <- gamm(Weight ~ te(Age, Chest) + s(Length), 
+                     random = list(Farm = ~1), 
+                     data = train)
+
+# View model summary
+summary(fit_additive)
+
+```
+```{r}
+fit_additive$lme
+```
+```{r}
+fit_additive$gam
+```
+
+## 13. 
+
+### AIC and BIC
+```{r}
+AIC(fit_additive$lme) 
+BIC(fit_additive$lme)
+
+```
+```{r}
+AIC(best_gam)  # If best_gam is a gam model
+BIC(best_gam)
+
+AIC(best_lme)  # If best_lme is a lme model
+BIC(best_lme)
+
+```
+
+### Residuals   
+
+```{r}
+plot(resid(fit_additive$lme), main = "Residuals: Additive Mixed Model")
+plot(resid(best_gam), main = "Residuals: GAM")
+plot(resid(best_lme), main = "Residuals: LME")
+
+```
+The Additive Mixed Model provides the most balanced fit, with centered residuals, consistent spread, and minimal patterns.
+The GAM performs reasonably well but shows slightly higher residual variability and potential clustering patterns, indicating it might miss some random effects or temporal correlations.
+The LME struggles more compared to the other two models, with wider residual spread, visible patterns, and heteroscedasticity.
+
+Conclusion : The LME model likely has a better AIC/BIC because : It is simpler than the Additive Mixed Model, as it uses linear terms (not smooth terms) and fewer degrees of freedom. It achieves a decent fit with fewer parameters, which the AIC/BIC reward. But, LME residuals show more variability and patterns, suggesting it may not capture the full complexity of the data. This makes sense because LME assumes linear relationships between the predictors and the response.
+So the Additive Mixed Model's better residuals suggest it fits the data more accurately and a lower AIC/BIC than best_gam.
+
+  
+## 14.
+
+```{r}
+# Load necessary library
+library(mgcv)
+
+fit_additive2 <- gamm(Weight ~ te(Age, Chest) + s(Length) , 
+                     random = list(Farm = ~Age), 
+                     data = train)
+
+fit_additive3 <- gamm(Weight ~ te(Age, Chest) + s(Length) , 
+                     random = list(Farm = ~1), 
+                     data = train)
+```
+
+```{r}
+AIC(fit_additive3$lme) 
+BIC(fit_additive3$lme)
+AIC(fit_additive2$lme) 
+BIC(fit_additive2$lme)
+AIC(fit_additive$lme) 
+BIC(fit_additive$lme)
+```
+
+```{r}
+AIC(best_gam)  # If best_gam is a gam model
+BIC(best_gam)
+
+AIC(best_lme)  # If best_lme is a lme model
+BIC(best_lme)
+
+```
+
+```{r}
+plot(resid(fit_additive$lme), main = "Residuals: Additive Mixed Model 1")
+plot(resid(fit_additive2$lme), main = "Residuals: Additive Mixed Model 2")
+plot(resid(fit_additive3$lme), main = "Residuals: Additive Mixed Model 3")
+
+```
 
